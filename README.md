@@ -139,3 +139,22 @@ This scaffold includes a comprehensive set of modern web development tools:
 ---
 
 Built with ❤️ for the developer community. Supercharged by [Z.ai](https://chat.z.ai) 🚀
+
+## 🗄️ Database & Conversion Jobs
+
+- Prisma schema lives in `prisma/schema.prisma` and migrations are stored under `prisma/migrations`
+- Run `npx prisma migrate dev --name <migration-name>` after adjusting the schema
+- Detailed table descriptions and workflows are documented in [`docs/database.md`](docs/database.md)
+
+### 🔁 PDF Conversion Settings
+
+Configure the conversion pipeline with the following environment variables:
+
+```env
+DATABASE_URL="file:./db/custom.db"
+CONVERSION_STORAGE_PATH="./storage/conversions"
+CONVERSION_EXPIRY_DAYS=7
+CONVERSION_MAX_FILE_SIZE=52428800
+```
+
+These settings enable the new conversion domain tables (`ConversionJob`, `ConversionOutputFile`, `ConversionEvent`) that power the PDF conversion workflow and automated cleanup.
