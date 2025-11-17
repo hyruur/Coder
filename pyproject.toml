@@ -1,0 +1,122 @@
+[tool.poetry]
+name = "quant-trader"
+version = "0.1.0"
+description = "A comprehensive A-share quantitative trading system with data collection, AI-powered analysis, backtesting, and live execution capabilities"
+authors = ["Quant Trader Team <team@quant-trader.local>"]
+readme = "README.md"
+license = "MIT"
+packages = [
+    { include = "quant_trader", from = "src" }
+]
+
+[tool.poetry.dependencies]
+python = "^3.10"
+pandas = "^2.0.0"
+numpy = "^1.26.0"
+akshare = "^1.13.0"
+tushare = "^1.2.0"
+fastapi = "^0.109.0"
+pydantic = "^2.0.0"
+pydantic-settings = "^2.0.0"
+httpx = "^0.25.0"
+aiohttp = "^3.9.0"
+asyncio-contextmanager = "^1.0.0"
+python-dotenv = "^1.0.0"
+pytz = "^2023.3"
+requests = "^2.31.0"
+
+[tool.poetry.group.dev.dependencies]
+pytest = "^7.4.0"
+pytest-asyncio = "^0.21.0"
+pytest-cov = "^4.1.0"
+black = "^23.10.0"
+ruff = "^0.12.0"
+mypy = "^1.7.0"
+types-requests = "^2.31.0"
+types-pytz = "^2023.3"
+
+[tool.black]
+line-length = 100
+target-version = ['py310', 'py311', 'py312']
+include = '\.pyi?$'
+extend-exclude = '''
+/(
+  # directories
+  \.eggs
+  | \.git
+  | \.hg
+  | \.mypy_cache
+  | \.tox
+  | \.venv
+  | build
+  | dist
+)/
+'''
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+exclude = [
+    ".eggs",
+    ".git",
+    ".hg",
+    ".mypy_cache",
+    ".tox",
+    ".venv",
+    "build",
+    "dist",
+]
+
+[tool.ruff.lint]
+select = [
+    "E",    # pycodestyle errors
+    "W",    # pycodestyle warnings
+    "F",    # pyflakes
+    "I",    # isort
+    "C",    # flake8-comprehensions
+    "B",    # flake8-bugbear
+    "UP",   # pyupgrade
+]
+ignore = [
+    "E501",  # line too long, handled by black
+]
+
+[tool.ruff.lint.isort]
+known-first-party = ["quant_trader"]
+
+[tool.mypy]
+python_version = "3.10"
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = false
+disallow_incomplete_defs = false
+check_untyped_defs = true
+no_implicit_optional = true
+warn_redundant_casts = true
+warn_unused_ignores = true
+warn_no_return = true
+strict_equality = true
+
+[[tool.mypy.overrides]]
+module = [
+    "akshare.*",
+    "tushare.*",
+]
+ignore_missing_imports = true
+
+[tool.pytest.ini_options]
+minversion = "7.0"
+testpaths = ["tests"]
+python_files = ["test_*.py", "*_test.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+addopts = "-v --strict-markers --tb=short"
+markers = [
+    "unit: Unit tests",
+    "integration: Integration tests",
+    "slow: Slow running tests",
+]
+
+[build-system]
+requires = ["poetry-core>=1.0.0"]
+build-backend = "poetry.core.masonry.api"
