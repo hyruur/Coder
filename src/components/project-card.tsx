@@ -1,10 +1,12 @@
 'use client'
 
+import { useMemo } from 'react'
 import { Card, CardContent, CardFooter, CardHeader } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Calendar, DollarSign, User, Eye } from 'lucide-react'
 import { Project } from '@/types'
+import { getPriorityVariant } from '@/lib/status-utils'
 import { useRouter } from 'next/navigation'
 
 interface ProjectCardProps {
@@ -14,20 +16,21 @@ interface ProjectCardProps {
 
 export function ProjectCard({ project, onBid }: ProjectCardProps) {
   const router = useRouter()
-  const techStack = JSON.parse(project.techStack || '[]')
-  
-  const handleViewDetails = () => {
-    router.push(`/project/${project.id}`)
-  }
+
+  // Parse once per project reference change instead of on every render
+  const techStack = useMemo<string[]>(
+    () => JSON.parse(project.techStack || '[]'),
+    [project.techStack],
+  )
+
+  const handleViewDetails = () => router.push(`/project/${project.id}`)
 
   return (
     <Card className="w-full hover:shadow-lg transition-shadow">
       <CardHeader className="pb-3">
         <div className="flex justify-between items-start">
           <h3 className="text-lg font-semibold line-clamp-2">{project.title}</h3>
-          <Badge variant={project.priority === 'URGENT' ? 'destructive' : 
-                         project.priority === 'HIGH' ? 'default' : 
-                         project.priority === 'MEDIUM' ? 'secondary' : 'outline'}>
+          <Badge variant={getPriorityVariant(project.priority)}>
             {project.priority}
           </Badge>
         </div>
@@ -35,11 +38,11 @@ export function ProjectCard({ project, onBid }: ProjectCardProps) {
           {project.description}
         </p>
       </CardHeader>
-      
+
       <CardContent className="pb-3">
         <div className="flex flex-wrap gap-2 mb-3">
-          {techStack.slice(0, 4).map((tech: string, index: number) => (
-            <Badge key={index} variant="outline" className="text-xs">
+          {techStack.slice(0, 4).map(tech => (
+            <Badge key={tech} variant="outline" className="text-xs">
               {tech}
             </Badge>
           ))}
@@ -49,7 +52,7 @@ export function ProjectCard({ project, onBid }: ProjectCardProps) {
             </Badge>
           )}
         </div>
-        
+
         <div className="grid grid-cols-2 gap-3 text-sm">
           <div className="flex items-center gap-1">
             <DollarSign className="w-4 h-4 text-green-600" />
@@ -69,21 +72,14 @@ export function ProjectCard({ project, onBid }: ProjectCardProps) {
           </div>
         </div>
       </CardContent>
-      
+
       <CardFooter className="pt-3">
         <div className="flex gap-2 w-full">
-          <Button 
-            variant="outline" 
-            className="flex-1"
-            onClick={handleViewDetails}
-          >
+          <Button variant="outline" className="flex-1" onClick={handleViewDetails}>
             查看详情
           </Button>
           {onBid && project.status === 'PUBLISHED' && (
-            <Button 
-              className="flex-1"
-              onClick={() => onBid(project.id)}
-            >
+            <Button className="flex-1" onClick={() => onBid(project.id)}>
               立即投标
             </Button>
           )}

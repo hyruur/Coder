@@ -1,17 +1,21 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback, useMemo } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { BidDialog, BidData } from '@/components/bid-dialog'
 import { useToast } from '@/hooks/use-toast'
-import { 
-  Calendar, DollarSign, Clock, User, Eye, MessageCircle, 
-  FileText, Share, AlertTriangle, CheckCircle, XCircle 
+import {
+  Calendar, DollarSign, Clock, User, Eye, MessageCircle,
+  FileText, Share, CheckCircle,
 } from 'lucide-react'
+import {
+  getPriorityVariant,
+  getPriorityLabel,
+  getProjectStatusLabel,
+} from '@/lib/status-utils'
 
 // 模拟项目数据
 const mockProject = {
@@ -69,54 +73,32 @@ export default function ProjectDetailPage() {
   const [project, setProject] = useState<any>(null)
   const [loading, setLoading] = useState(true)
   const [showBidDialog, setShowBidDialog] = useState(false)
-  const [userRole, setUserRole] = useState<'CLIENT' | 'DEVELOPER'>('DEVELOPER')
+  const [userRole] = useState<'CLIENT' | 'DEVELOPER'>('DEVELOPER')
 
   useEffect(() => {
-    // 模拟获取项目详情
     const fetchProject = async () => {
       setLoading(true)
       await new Promise(resolve => setTimeout(resolve, 1000))
       setProject(mockProject)
       setLoading(false)
     }
-    
     fetchProject()
   }, [params.id])
 
-  const handleBidSubmit = async (bidData: BidData) => {
+  const handleBidSubmit = useCallback(async (bidData: BidData) => {
     try {
-      console.log('提交投标:', bidData)
-      
-      // 模拟API调用
       await new Promise(resolve => setTimeout(resolve, 1500))
-      
-      toast({
-        title: "投标成功",
-        description: "您的投标已提交，等待项目方确认",
-      })
-      
-      // 更新项目数据
-      setProject(prev => ({
-        ...prev,
-        bidCount: prev.bidCount + 1
-      }))
-      
+      toast({ title: '投标成功', description: '您的投标已提交，等待项目方确认' })
+      setProject((prev: any) => ({ ...prev, bidCount: prev.bidCount + 1 }))
     } catch (error) {
       console.error('投标失败:', error)
-      toast({
-        title: "投标失败",
-        description: "投标提交失败，请重试",
-        variant: "destructive",
-      })
+      toast({ title: '投标失败', description: '投标提交失败，请重试', variant: 'destructive' })
     }
-  }
+  }, [toast])
 
-  const handleContactClient = () => {
-    toast({
-      title: "联系项目方",
-      description: "正在跳转到聊天界面...",
-    })
-  }
+  const handleContactClient = useCallback(() => {
+    toast({ title: '联系项目方', description: '正在跳转到聊天界面...' })
+  }, [toast])
 
   if (loading) {
     return (
@@ -146,7 +128,12 @@ export default function ProjectDetailPage() {
     )
   }
 
-  const techStack = JSON.parse(project.techStack || '[]')
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const techStack: string[] = useMemo(
+    () => JSON.parse(project.techStack || '[]'),
+    // project is replaced wholesale on fetch, so project.techStack is stable
+    [project.techStack],
+  )
   const canBid = userRole === 'DEVELOPER' && project.status === 'PUBLISHED'
 
   return (
@@ -158,15 +145,11 @@ export default function ProjectDetailPage() {
             <div className="flex-1">
               <div className="flex items-center gap-3 mb-2">
                 <h1 className="text-2xl font-bold text-gray-900">{project.title}</h1>
-                <Badge variant={project.priority === 'URGENT' ? 'destructive' : 
-                               project.priority === 'HIGH' ? 'default' : 
-                               project.priority === 'MEDIUM' ? 'secondary' : 'outline'}>
-                  {project.priority}
+                <Badge variant={getPriorityVariant(project.priority)}>
+                  {getPriorityLabel(project.priority)}
                 </Badge>
                 <Badge variant="outline">
-                  {project.status === 'PUBLISHED' ? '已发布' : 
-                   project.status === 'BIDDING' ? '招标中' : 
-                   project.status === 'IN_PROGRESS' ? '进行中' : project.status}
+                  {getProjectStatusLabel(project.status)}
                 </Badge>
               </div>
               
@@ -229,8 +212,8 @@ export default function ProjectDetailPage() {
               </CardHeader>
               <CardContent>
                 <div className="flex flex-wrap gap-2">
-                  {techStack.map((tech: string, index: number) => (
-                    <Badge key={index} variant="outline">
+                  {techStack.map((tech: string) => (
+                    <Badge key={tech} variant="outline">
                       {tech}
                     </Badge>
                   ))}
@@ -304,18 +287,14 @@ export default function ProjectDetailPage() {
                 </div>
                 <div className="flex items-center justify-between">
                   <span className="text-gray-600">优先级</span>
-                  <Badge variant={
-                    project.priority === 'URGENT' ? 'destructive' :
-                    project.priority === 'HIGH' ? 'default' :
-                    project.priority === 'MEDIUM' ? 'secondary' : 'outline'
-                  }>
-                    {project.priority}
+                  <Badge variant={getPriorityVariant(project.priority)}>
+                    {getPriorityLabel(project.priority)}
                   </Badge>
                 </div>
                 <div className="flex items-center justify-between">
                   <span className="text-gray-600">状态</span>
                   <Badge variant="outline">
-                    {project.status === 'PUBLISHED' ? '已发布' : project.status}
+                    {getProjectStatusLabel(project.status)}
                   </Badge>
                 </div>
               </CardContent>

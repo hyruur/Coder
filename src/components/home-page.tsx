@@ -1,22 +1,22 @@
 'use client'
 
-import { useState, useEffect } from 'react'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { useState, useCallback, useMemo } from 'react'
+import { Card, CardContent, CardHeader } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { Badge } from '@/components/ui/badge'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { ProjectCard } from './project-card'
 import { ProjectFilters, ProjectFilters as FiltersType } from './project-filters'
+import { StatCard } from './stat-card'
 import { Project } from '@/types'
-import { Plus, Search, Filter, TrendingUp, Users, Code, DollarSign, User } from 'lucide-react'
+import { Plus, Filter, TrendingUp, Users, Code, DollarSign, User } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 
 interface HomePageProps {
   userRole?: 'CLIENT' | 'DEVELOPER'
-  onCreateProject?: () => void
 }
 
-// 模拟数据
+// ─── Mock data ────────────────────────────────────────────────────────────────
+
 const mockProjects: Project[] = [
   {
     id: '1',
@@ -42,9 +42,9 @@ const mockProjects: Project[] = [
       creditScore: 95,
       balance: 50000,
       createdAt: new Date('2023-12-01'),
-      updatedAt: new Date('2024-01-10')
+      updatedAt: new Date('2024-01-10'),
     },
-    tags: []
+    tags: [],
   },
   {
     id: '2',
@@ -70,9 +70,9 @@ const mockProjects: Project[] = [
       creditScore: 88,
       balance: 80000,
       createdAt: new Date('2023-11-15'),
-      updatedAt: new Date('2024-01-05')
+      updatedAt: new Date('2024-01-05'),
     },
-    tags: []
+    tags: [],
   },
   {
     id: '3',
@@ -98,102 +98,146 @@ const mockProjects: Project[] = [
       creditScore: 92,
       balance: 120000,
       createdAt: new Date('2023-10-20'),
-      updatedAt: new Date('2024-01-01')
+      updatedAt: new Date('2024-01-01'),
     },
-    tags: []
-  }
+    tags: [],
+  },
 ]
+
+const STATS = {
+  totalProjects: 1234,
+  activeDevelopers: 567,
+  completedProjects: 890,
+  totalValue: 5678900,
+}
+
+// ─── Skeleton loader ──────────────────────────────────────────────────────────
+
+function ProjectSkeleton() {
+  return (
+    <Card className="animate-pulse">
+      <CardHeader>
+        <div className="h-4 bg-gray-200 rounded w-3/4" />
+        <div className="h-3 bg-gray-200 rounded w-full" />
+      </CardHeader>
+      <CardContent>
+        <div className="space-y-2">
+          <div className="h-3 bg-gray-200 rounded" />
+          <div className="h-3 bg-gray-200 rounded w-5/6" />
+        </div>
+      </CardContent>
+    </Card>
+  )
+}
+
+// ─── Component ────────────────────────────────────────────────────────────────
 
 export function HomePage({ userRole }: HomePageProps) {
   const router = useRouter()
-  const [projects, setProjects] = useState<Project[]>(mockProjects)
+  const [projects] = useState<Project[]>(mockProjects)
   const [filteredProjects, setFilteredProjects] = useState<Project[]>(mockProjects)
   const [showFilters, setShowFilters] = useState(false)
   const [loading, setLoading] = useState(false)
 
-  const handleSearch = (query: string) => {
-    setLoading(true)
-    // 模拟搜索延迟
-    setTimeout(() => {
-      const filtered = projects.filter(project => 
-        project.title.toLowerCase().includes(query.toLowerCase()) ||
-        project.description.toLowerCase().includes(query.toLowerCase())
-      )
-      setFilteredProjects(filtered)
-      setLoading(false)
-    }, 300)
-  }
-
-  const handleFilter = (filters: FiltersType) => {
-    setLoading(true)
-    setTimeout(() => {
-      let filtered = [...projects]
-
-      if (filters.techStack && filters.techStack.length > 0) {
-        filtered = filtered.filter(project => {
-          const projectTechStack = JSON.parse(project.techStack || '[]')
-          return filters.techStack!.some(tech => projectTechStack.includes(tech))
-        })
-      }
-
-      if (filters.budget) {
-        filtered = filtered.filter(project => 
-          project.budget >= filters.budget!.min && 
-          project.budget <= filters.budget!.max
+  const handleSearch = useCallback(
+    (query: string) => {
+      setLoading(true)
+      setTimeout(() => {
+        const q = query.toLowerCase()
+        setFilteredProjects(
+          projects.filter(
+            p =>
+              p.title.toLowerCase().includes(q) ||
+              p.description.toLowerCase().includes(q),
+          ),
         )
-      }
+        setLoading(false)
+      }, 300)
+    },
+    [projects],
+  )
 
-      if (filters.duration) {
-        filtered = filtered.filter(project => 
-          project.duration >= filters.duration!.min && 
-          project.duration <= filters.duration!.max
-        )
-      }
+  const handleFilter = useCallback(
+    (filters: FiltersType) => {
+      setLoading(true)
+      setTimeout(() => {
+        let result = [...projects]
 
-      if (filters.priority && filters.priority.length > 0) {
-        filtered = filtered.filter(project => 
-          filters.priority!.includes(project.priority)
-        )
-      }
+        if (filters.techStack?.length) {
+          result = result.filter(p => {
+            const stack: string[] = JSON.parse(p.techStack || '[]')
+            return filters.techStack!.some(t => stack.includes(t))
+          })
+        }
+        if (filters.budget) {
+          result = result.filter(
+            p =>
+              p.budget >= filters.budget!.min &&
+              p.budget <= filters.budget!.max,
+          )
+        }
+        if (filters.duration) {
+          result = result.filter(
+            p =>
+              p.duration >= filters.duration!.min &&
+              p.duration <= filters.duration!.max,
+          )
+        }
+        if (filters.priority?.length) {
+          result = result.filter(p => filters.priority!.includes(p.priority))
+        }
+        if (filters.status?.length) {
+          result = result.filter(p => filters.status!.includes(p.status))
+        }
 
-      if (filters.status && filters.status.length > 0) {
-        filtered = filtered.filter(project => 
-          filters.status!.includes(project.status)
-        )
-      }
+        setFilteredProjects(result)
+        setLoading(false)
+      }, 300)
+    },
+    [projects],
+  )
 
-      setFilteredProjects(filtered)
-      setLoading(false)
-    }, 300)
-  }
+  const handleClear = useCallback(() => setFilteredProjects(projects), [projects])
 
-  const handleClear = () => {
-    setFilteredProjects(projects)
-  }
+  const handleBid = useCallback(
+    (projectId: string) => router.push(`/project/${projectId}`),
+    [router],
+  )
 
-  const handleBid = (projectId: string) => {
-    console.log('投标项目:', projectId)
-    // 这里可以打开投标对话框
-    router.push(`/project/${projectId}`)
-  }
+  // Derived tab lists – computed once per filteredProjects change
+  const publishedProjects = useMemo(
+    () => filteredProjects.filter(p => p.status === 'PUBLISHED'),
+    [filteredProjects],
+  )
+  const biddingProjects = useMemo(
+    () => filteredProjects.filter(p => p.status === 'BIDDING'),
+    [filteredProjects],
+  )
+  const urgentProjects = useMemo(
+    () => filteredProjects.filter(p => p.priority === 'URGENT'),
+    [filteredProjects],
+  )
 
-  const stats = {
-    totalProjects: 1234,
-    activeDevelopers: 567,
-    completedProjects: 890,
-    totalValue: 5678900
-  }
+  const bidHandler = userRole === 'DEVELOPER' ? handleBid : undefined
+
+  const renderGrid = (list: Project[]) => (
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      {loading
+        ? Array.from({ length: 6 }, (_, i) => <ProjectSkeleton key={i} />)
+        : list.map(project => (
+            <ProjectCard key={project.id} project={project} onBid={bidHandler} />
+          ))}
+    </div>
+  )
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* 头部 */}
+      {/* Header */}
       <div className="bg-white shadow-sm border-b">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
-            <div className="flex items-center">
-              <h1 className="text-2xl font-bold text-gray-900">程序员接单平台</h1>
-            </div>
-            
+            <h1 className="text-2xl font-bold text-gray-900">程序员接单平台</h1>
+
             <div className="flex items-center gap-4">
               {userRole === 'CLIENT' && (
                 <Button onClick={() => router.push('/create-project')}>
@@ -201,15 +245,13 @@ export function HomePage({ userRole }: HomePageProps) {
                   发布需求
                 </Button>
               )}
-              
               <Button
                 variant="outline"
-                onClick={() => setShowFilters(!showFilters)}
+                onClick={() => setShowFilters(v => !v)}
               >
                 <Filter className="w-4 h-4 mr-2" />
                 筛选
               </Button>
-              
               <Button variant="outline" onClick={() => router.push('/dashboard')}>
                 <User className="w-4 h-4 mr-2" />
                 个人中心
@@ -221,7 +263,7 @@ export function HomePage({ userRole }: HomePageProps) {
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
-          {/* 左侧筛选栏 */}
+          {/* Sidebar filters */}
           {showFilters && (
             <div className="lg:col-span-1">
               <ProjectFilters
@@ -232,60 +274,22 @@ export function HomePage({ userRole }: HomePageProps) {
             </div>
           )}
 
-          {/* 右侧内容区 */}
-          <div className={showFilters ? "lg:col-span-3" : "lg:col-span-4"}>
-            {/* 统计卡片 */}
+          {/* Main content */}
+          <div className={showFilters ? 'lg:col-span-3' : 'lg:col-span-4'}>
+            {/* Stats */}
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
-              <Card>
-                <CardContent className="p-6">
-                  <div className="flex items-center">
-                    <TrendingUp className="h-8 w-8 text-blue-600" />
-                    <div className="ml-4">
-                      <p className="text-sm font-medium text-gray-600">总项目数</p>
-                      <p className="text-2xl font-bold">{stats.totalProjects}</p>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardContent className="p-6">
-                  <div className="flex items-center">
-                    <Users className="h-8 w-8 text-green-600" />
-                    <div className="ml-4">
-                      <p className="text-sm font-medium text-gray-600">活跃程序员</p>
-                      <p className="text-2xl font-bold">{stats.activeDevelopers}</p>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardContent className="p-6">
-                  <div className="flex items-center">
-                    <Code className="h-8 w-8 text-purple-600" />
-                    <div className="ml-4">
-                      <p className="text-sm font-medium text-gray-600">已完成项目</p>
-                      <p className="text-2xl font-bold">{stats.completedProjects}</p>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardContent className="p-6">
-                  <div className="flex items-center">
-                    <DollarSign className="h-8 w-8 text-orange-600" />
-                    <div className="ml-4">
-                      <p className="text-sm font-medium text-gray-600">总交易额</p>
-                      <p className="text-2xl font-bold">¥{(stats.totalValue / 10000).toFixed(1)}万</p>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
+              <StatCard icon={TrendingUp} iconClassName="text-blue-600"   label="总项目数"  value={STATS.totalProjects} />
+              <StatCard icon={Users}      iconClassName="text-green-600"  label="活跃程序员" value={STATS.activeDevelopers} />
+              <StatCard icon={Code}       iconClassName="text-purple-600" label="已完成项目" value={STATS.completedProjects} />
+              <StatCard
+                icon={DollarSign}
+                iconClassName="text-orange-600"
+                label="总交易额"
+                value={`¥${(STATS.totalValue / 10000).toFixed(1)}万`}
+              />
             </div>
 
-            {/* 项目列表 */}
+            {/* Project tabs */}
             <Tabs defaultValue="all" className="space-y-4">
               <TabsList>
                 <TabsTrigger value="all">全部项目</TabsTrigger>
@@ -294,77 +298,10 @@ export function HomePage({ userRole }: HomePageProps) {
                 <TabsTrigger value="urgent">紧急项目</TabsTrigger>
               </TabsList>
 
-              <TabsContent value="all" className="space-y-4">
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                  {loading ? (
-                    // 加载状态
-                    Array.from({ length: 6 }).map((_, index) => (
-                      <Card key={index} className="animate-pulse">
-                        <CardHeader>
-                          <div className="h-4 bg-gray-200 rounded w-3/4"></div>
-                          <div className="h-3 bg-gray-200 rounded w-full"></div>
-                        </CardHeader>
-                        <CardContent>
-                          <div className="space-y-2">
-                            <div className="h-3 bg-gray-200 rounded"></div>
-                            <div className="h-3 bg-gray-200 rounded w-5/6"></div>
-                          </div>
-                        </CardContent>
-                      </Card>
-                    ))
-                  ) : (
-                    filteredProjects.map(project => (
-                      <ProjectCard
-                        key={project.id}
-                        project={project}
-                        onBid={userRole === 'DEVELOPER' ? handleBid : undefined}
-                      />
-                    ))
-                  )}
-                </div>
-              </TabsContent>
-
-              <TabsContent value="published" className="space-y-4">
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                  {filteredProjects
-                    .filter(p => p.status === 'PUBLISHED')
-                    .map(project => (
-                      <ProjectCard
-                        key={project.id}
-                        project={project}
-                        onBid={userRole === 'DEVELOPER' ? handleBid : undefined}
-                      />
-                    ))}
-                </div>
-              </TabsContent>
-
-              <TabsContent value="bidding" className="space-y-4">
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                  {filteredProjects
-                    .filter(p => p.status === 'BIDDING')
-                    .map(project => (
-                      <ProjectCard
-                        key={project.id}
-                        project={project}
-                        onBid={userRole === 'DEVELOPER' ? handleBid : undefined}
-                      />
-                    ))}
-                </div>
-              </TabsContent>
-
-              <TabsContent value="urgent" className="space-y-4">
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                  {filteredProjects
-                    .filter(p => p.priority === 'URGENT')
-                    .map(project => (
-                      <ProjectCard
-                        key={project.id}
-                        project={project}
-                        onBid={userRole === 'DEVELOPER' ? handleBid : undefined}
-                      />
-                    ))}
-                </div>
-              </TabsContent>
+              <TabsContent value="all"      className="space-y-4">{renderGrid(filteredProjects)}</TabsContent>
+              <TabsContent value="published" className="space-y-4">{renderGrid(publishedProjects)}</TabsContent>
+              <TabsContent value="bidding"   className="space-y-4">{renderGrid(biddingProjects)}</TabsContent>
+              <TabsContent value="urgent"    className="space-y-4">{renderGrid(urgentProjects)}</TabsContent>
             </Tabs>
           </div>
         </div>

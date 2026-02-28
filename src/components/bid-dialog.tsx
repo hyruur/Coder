@@ -1,7 +1,7 @@
 'use client'
 
-import { useState } from 'react'
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
+import { useState, useMemo } from 'react'
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
@@ -9,11 +9,13 @@ import { Label } from '@/components/ui/label'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Alert, AlertDescription } from '@/components/ui/alert'
-import { Calendar, DollarSign, Clock, FileText, AlertCircle } from 'lucide-react'
+import { Calendar, DollarSign, Clock, AlertCircle } from 'lucide-react'
+import { Project } from '@/types'
+import { getPriorityLabel } from '@/lib/status-utils'
 
 interface BidDialogProps {
-  project: any
-  onSubmit: (bidData: BidData) => void
+  project: Project
+  onSubmit: (bidData: BidData) => Promise<void>
   isOpen: boolean
   onClose: () => void
 }
@@ -26,25 +28,28 @@ export interface BidData {
 
 export function BidDialog({ project, onSubmit, isOpen, onClose }: BidDialogProps) {
   const [bidData, setBidData] = useState<BidData>({
-    amount: project.budget || 0,
-    duration: project.duration || 30,
-    proposal: ''
+    amount: project.budget,
+    duration: project.duration,
+    proposal: '',
   })
-
   const [errors, setErrors] = useState<Partial<Record<keyof BidData, string>>>({})
   const [isSubmitting, setIsSubmitting] = useState(false)
 
-  const validateForm = () => {
+  // Parse tech stack once
+  const techStack = useMemo<string[]>(
+    () => JSON.parse(project.techStack || '[]'),
+    [project.techStack],
+  )
+
+  const validateForm = (): boolean => {
     const newErrors: Partial<Record<keyof BidData, string>> = {}
 
     if (bidData.amount <= 0) {
       newErrors.amount = '请输入有效的报价金额'
     }
-
     if (bidData.duration <= 0) {
       newErrors.duration = '请输入有效的工期'
     }
-
     if (!bidData.proposal.trim()) {
       newErrors.proposal = '请输入开发方案'
     } else if (bidData.proposal.length < 100) {
@@ -57,13 +62,9 @@ export function BidDialog({ project, onSubmit, isOpen, onClose }: BidDialogProps
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    
-    if (!validateForm()) {
-      return
-    }
+    if (!validateForm()) return
 
     setIsSubmitting(true)
-    
     try {
       await onSubmit(bidData)
       onClose()
@@ -74,14 +75,12 @@ export function BidDialog({ project, onSubmit, isOpen, onClose }: BidDialogProps
     }
   }
 
-  const handleInputChange = (field: keyof BidData, value: any) => {
+  const handleInputChange = <K extends keyof BidData>(field: K, value: BidData[K]) => {
     setBidData(prev => ({ ...prev, [field]: value }))
     if (errors[field]) {
       setErrors(prev => ({ ...prev, [field]: undefined }))
     }
   }
-
-  const techStack = JSON.parse(project.techStack || '[]')
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
@@ -91,7 +90,7 @@ export function BidDialog({ project, onSubmit, isOpen, onClose }: BidDialogProps
         </DialogHeader>
 
         <div className="space-y-6">
-          {/* 项目信息 */}
+          {/* Project summary */}
           <Card>
             <CardHeader>
               <CardTitle className="text-lg">项目信息</CardTitle>
@@ -113,15 +112,15 @@ export function BidDialog({ project, onSubmit, isOpen, onClose }: BidDialogProps
                 </div>
                 <div className="flex items-center gap-2">
                   <Calendar className="w-4 h-4 text-purple-600" />
-                  <span className="text-sm">优先级: {project.priority}</span>
+                  <span className="text-sm">优先级: {getPriorityLabel(project.priority)}</span>
                 </div>
               </div>
 
               <div>
                 <Label className="text-sm font-medium">技术栈:</Label>
                 <div className="flex flex-wrap gap-1 mt-1">
-                  {techStack.map((tech: string, index: number) => (
-                    <Badge key={index} variant="outline" className="text-xs">
+                  {techStack.map(tech => (
+                    <Badge key={tech} variant="outline" className="text-xs">
                       {tech}
                     </Badge>
                   ))}
@@ -130,7 +129,7 @@ export function BidDialog({ project, onSubmit, isOpen, onClose }: BidDialogProps
             </CardContent>
           </Card>
 
-          {/* 投标表单 */}
+          {/* Bid form */}
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
@@ -139,12 +138,14 @@ export function BidDialog({ project, onSubmit, isOpen, onClose }: BidDialogProps
                   id="amount"
                   type="number"
                   value={bidData.amount}
-                  onChange={(e) => handleInputChange('amount', parseFloat(e.target.value) || 0)}
+                  onChange={e => handleInputChange('amount', parseFloat(e.target.value) || 0)}
                   placeholder="0"
                   className={errors.amount ? 'border-red-500' : ''}
                 />
                 {errors.amount && <p className="text-red-500 text-sm mt-1">{errors.amount}</p>}
-                <p className="text-gray-500 text-xs mt-1">项目方预算: ¥{project.budget.toLocaleString()}</p>
+                <p className="text-gray-500 text-xs mt-1">
+                  项目方预算: ¥{project.budget.toLocaleString()}
+                </p>
               </div>
 
               <div>
@@ -153,12 +154,14 @@ export function BidDialog({ project, onSubmit, isOpen, onClose }: BidDialogProps
                   id="duration"
                   type="number"
                   value={bidData.duration}
-                  onChange={(e) => handleInputChange('duration', parseInt(e.target.value) || 0)}
+                  onChange={e => handleInputChange('duration', parseInt(e.target.value) || 0)}
                   placeholder="30"
                   className={errors.duration ? 'border-red-500' : ''}
                 />
                 {errors.duration && <p className="text-red-500 text-sm mt-1">{errors.duration}</p>}
-                <p className="text-gray-500 text-xs mt-1">项目方期望: {project.duration}天</p>
+                <p className="text-gray-500 text-xs mt-1">
+                  项目方期望: {project.duration}天
+                </p>
               </div>
             </div>
 
@@ -167,7 +170,7 @@ export function BidDialog({ project, onSubmit, isOpen, onClose }: BidDialogProps
               <Textarea
                 id="proposal"
                 value={bidData.proposal}
-                onChange={(e) => handleInputChange('proposal', e.target.value)}
+                onChange={e => handleInputChange('proposal', e.target.value)}
                 placeholder="请详细描述您的开发思路、技术方案、项目计划、交付标准等..."
                 rows={8}
                 className={errors.proposal ? 'border-red-500' : ''}
@@ -178,7 +181,6 @@ export function BidDialog({ project, onSubmit, isOpen, onClose }: BidDialogProps
               </p>
             </div>
 
-            {/* 投标提示 */}
             <Alert>
               <AlertCircle className="h-4 w-4" />
               <AlertDescription>
@@ -191,21 +193,11 @@ export function BidDialog({ project, onSubmit, isOpen, onClose }: BidDialogProps
               </AlertDescription>
             </Alert>
 
-            {/* 操作按钮 */}
             <div className="flex gap-4 pt-4">
-              <Button
-                type="button"
-                variant="outline"
-                onClick={onClose}
-                className="flex-1"
-              >
+              <Button type="button" variant="outline" onClick={onClose} className="flex-1">
                 取消
               </Button>
-              <Button
-                type="submit"
-                className="flex-1"
-                disabled={isSubmitting}
-              >
+              <Button type="submit" className="flex-1" disabled={isSubmitting}>
                 {isSubmitting ? '提交中...' : '确认投标'}
               </Button>
             </div>

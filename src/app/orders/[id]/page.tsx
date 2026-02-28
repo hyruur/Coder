@@ -1,22 +1,28 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Progress } from '@/components/ui/progress'
 import { Textarea } from '@/components/ui/textarea'
 import { Label } from '@/components/ui/label'
 import { Input } from '@/components/ui/input'
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
-import { 
-  Calendar, DollarSign, Clock, User, FileText, MessageCircle, 
-  CheckCircle, AlertTriangle, Upload, Download, Eye, Star,
-  Plus, X, Send
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import {
+  Calendar, DollarSign, Clock, User, FileText, MessageCircle,
+  CheckCircle, AlertTriangle, Upload, Download, Send,
 } from 'lucide-react'
 import { useToast } from '@/hooks/use-toast'
+import {
+  getOrderStatusVariant,
+  getOrderStatusLabel,
+  getDeliverableStatusVariant,
+  getDeliverableStatusLabel,
+  getPaymentStatusVariant,
+  getPaymentStatusLabel,
+} from '@/lib/status-utils'
 
 // 模拟订单数据
 const mockOrder = {
@@ -90,67 +96,19 @@ export default function OrderDetailPage() {
   const [newDeliverable, setNewDeliverable] = useState({
     title: '',
     description: '',
-    fileUrl: ''
+    fileUrl: '',
   })
-  const [userRole, setUserRole] = useState<'CLIENT' | 'DEVELOPER'>('DEVELOPER')
+  const [userRole] = useState<'CLIENT' | 'DEVELOPER'>('DEVELOPER')
 
   useEffect(() => {
-    // 模拟获取订单详情
     const fetchOrder = async () => {
       setLoading(true)
       await new Promise(resolve => setTimeout(resolve, 1000))
       setOrder(mockOrder)
       setLoading(false)
     }
-    
     fetchOrder()
   }, [params.id])
-
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'PENDING': return 'secondary'
-      case 'CONFIRMED': return 'default'
-      case 'IN_PROGRESS': return 'default'
-      case 'REVIEWING': return 'secondary'
-      case 'COMPLETED': return 'default'
-      case 'CANCELLED': return 'destructive'
-      case 'DISPUTED': return 'destructive'
-      default: return 'outline'
-    }
-  }
-
-  const getStatusText = (status: string) => {
-    switch (status) {
-      case 'PENDING': return '待确认'
-      case 'CONFIRMED': return '已确认'
-      case 'IN_PROGRESS': return '进行中'
-      case 'REVIEWING': return '待验收'
-      case 'COMPLETED': return '已完成'
-      case 'CANCELLED': return '已取消'
-      case 'DISPUTED': return '争议中'
-      default: return status
-    }
-  }
-
-  const getDeliverableStatusColor = (status: string) => {
-    switch (status) {
-      case 'PENDING': return 'secondary'
-      case 'SUBMITTED': return 'default'
-      case 'APPROVED': return 'default'
-      case 'REJECTED': return 'destructive'
-      default: return 'outline'
-    }
-  }
-
-  const getDeliverableStatusText = (status: string) => {
-    switch (status) {
-      case 'PENDING': return '待提交'
-      case 'SUBMITTED': return '已提交'
-      case 'APPROVED': return '已通过'
-      case 'REJECTED': return '已拒绝'
-      default: return status
-    }
-  }
 
   const handleSubmitDeliverable = async () => {
     try {
@@ -304,11 +262,11 @@ export default function OrderDetailPage() {
             <div className="flex-1">
               <div className="flex items-center gap-3 mb-2">
                 <h1 className="text-2xl font-bold text-gray-900">{order.projectTitle}</h1>
-                <Badge variant={getStatusColor(order.status)}>
-                  {getStatusText(order.status)}
+                <Badge variant={getOrderStatusVariant(order.status)}>
+                  {getOrderStatusLabel(order.status)}
                 </Badge>
-                <Badge variant="outline">
-                  {order.paymentStatus === 'PAID' ? '已支付' : '未支付'}
+                <Badge variant={getPaymentStatusVariant(order.paymentStatus)}>
+                  {getPaymentStatusLabel(order.paymentStatus)}
                 </Badge>
               </div>
               
@@ -388,8 +346,8 @@ export default function OrderDetailPage() {
                           <h4 className="font-medium">{deliverable.title}</h4>
                           <p className="text-sm text-gray-600 mt-1">{deliverable.description}</p>
                         </div>
-                        <Badge variant={getDeliverableStatusColor(deliverable.status)}>
-                          {getDeliverableStatusText(deliverable.status)}
+                        <Badge variant={getDeliverableStatusVariant(deliverable.status)}>
+                          {getDeliverableStatusLabel(deliverable.status)}
                         </Badge>
                       </div>
 
@@ -420,12 +378,11 @@ export default function OrderDetailPage() {
                                 <CheckCircle className="w-4 h-4 mr-1" />
                                 通过
                               </Button>
-                              <Button 
-                                variant="destructive" 
+                              <Button
+                                variant="destructive"
                                 size="sm"
                                 onClick={() => handleRejectDeliverable(deliverable.id)}
                               >
-                                <X className="w-4 h-4 mr-1" />
                                 拒绝
                               </Button>
                             </>
@@ -461,8 +418,8 @@ export default function OrderDetailPage() {
                     <div>
                       <Label className="text-sm font-medium text-gray-600">支付状态</Label>
                       <div className="mt-1">
-                        <Badge variant={order.paymentStatus === 'PAID' ? 'default' : 'destructive'}>
-                          {order.paymentStatus === 'PAID' ? '已支付' : '未支付'}
+                        <Badge variant={getPaymentStatusVariant(order.paymentStatus)}>
+                          {getPaymentStatusLabel(order.paymentStatus)}
                         </Badge>
                       </div>
                     </div>
@@ -520,8 +477,8 @@ export default function OrderDetailPage() {
                           {payment.paymentMethod === 'WECHAT' ? '微信支付' : '其他'}
                         </div>
                       </div>
-                      <Badge variant={payment.status === 'PAID' ? 'default' : 'destructive'}>
-                        {payment.status === 'PAID' ? '已支付' : '未支付'}
+                      <Badge variant={getPaymentStatusVariant(payment.status)}>
+                        {getPaymentStatusLabel(payment.status)}
                       </Badge>
                     </div>
                   ))}

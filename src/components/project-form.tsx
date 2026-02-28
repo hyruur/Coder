@@ -10,9 +10,10 @@ import { Badge } from '@/components/ui/badge'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Calendar } from '@/components/ui/calendar'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
-import { CalendarIcon, Plus, X, Upload } from 'lucide-react'
+import { CalendarIcon, X, Upload } from 'lucide-react'
 import { format } from 'date-fns'
 import { cn } from '@/lib/utils'
+import { TECH_STACKS } from '@/lib/constants'
 
 interface ProjectFormProps {
   onSubmit: (projectData: ProjectFormData) => void
@@ -30,17 +31,6 @@ export interface ProjectFormData {
   priority: 'LOW' | 'MEDIUM' | 'HIGH' | 'URGENT'
   deadline?: Date
 }
-
-const TECH_STACKS = [
-  'React', 'Vue', 'Angular', 'Svelte',
-  'Node.js', 'Python', 'Java', 'Go', 'PHP',
-  'TypeScript', 'JavaScript', 'Python', 'Java',
-  'MySQL', 'PostgreSQL', 'MongoDB', 'Redis',
-  'Docker', 'Kubernetes', 'AWS', '阿里云',
-  '微信小程序', 'iOS', 'Android', 'Flutter',
-  'HTML/CSS', 'Bootstrap', 'Tailwind CSS',
-  'Express.js', 'Django', 'Spring Boot', 'Laravel'
-]
 
 export function ProjectForm({ onSubmit, onCancel }: ProjectFormProps) {
   const [formData, setFormData] = useState<ProjectFormData>({
@@ -192,7 +182,7 @@ export function ProjectForm({ onSubmit, onCancel }: ProjectFormProps) {
                   {TECH_STACKS.map(tech => (
                     <Badge
                       key={tech}
-                      variant={formData.techStack.includes(tech) ? "default" : "outline"}
+                      variant={formData.techStack.includes(tech) ? 'default' : 'outline'}
                       className="cursor-pointer"
                       onClick={() => toggleTechStack(tech)}
                     >
